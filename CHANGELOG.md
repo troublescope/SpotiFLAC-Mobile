@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.5.0-hotfix] - 2026-01-02
+
+### Important Notice
+We apologize for the inconvenience. Previous releases were signed with different keys, causing "package conflicts" errors when upgrading. Starting from this version, all releases will use a consistent signing key.
+
+**If you're upgrading from v1.5.0 or earlier, please uninstall the app first before installing this version.** This is a one-time requirement. Future updates will work seamlessly without uninstalling.
+
+### Added
+- **In-App Update**: Download and install updates directly from the app
+  - Progress bar shows download status
+  - Automatic device architecture detection (arm64/arm32)
+  - Downloads correct APK for your device
+- **Consistent App Signing**: All future releases will use the same signing key
+
+### Fixed
+- **Update Checker**: Now downloads APK directly instead of opening browser
+
 ## [1.5.0] - 2026-01-02
 
 ### Added
@@ -20,6 +37,10 @@
 - **Multi-Progress Tracking for Concurrent Downloads**: Each concurrent download now shows individual progress percentage
   - Previously concurrent downloads jumped from 0% to 100%
   - Now each track shows real-time progress when downloading in parallel
+- **In-App Update**: Download and install updates directly from the app
+  - Progress bar shows download status
+  - Automatic device architecture detection (arm64/arm32)
+  - Downloads correct APK for your device
 
 ### Changed
 - **Recent Downloads**: Now shows up to 10 items (was 5) for better scrolling

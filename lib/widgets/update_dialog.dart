@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:spotiflac_android/constants/app_info.dart';
 import 'package:spotiflac_android/services/update_checker.dart';
+import 'package:spotiflac_android/services/apk_downloader.dart';
+import 'package:spotiflac_android/services/notification_service.dart';
 
-class UpdateDialog extends StatelessWidget {
+class UpdateDialog extends StatefulWidget {
   final UpdateInfo updateInfo;
   final VoidCallback onDismiss;
   final VoidCallback onDisableUpdates;
@@ -14,6 +16,84 @@ class UpdateDialog extends StatelessWidget {
     required this.onDismiss,
     required this.onDisableUpdates,
   });
+
+  @override
+  State<UpdateDialog> createState() => _UpdateDialogState();
+}
+
+class _UpdateDialogState extends State<UpdateDialog> {
+  bool _isDownloading = false;
+  double _progress = 0;
+  String _statusText = '';
+
+  Future<void> _downloadAndInstall() async {
+    final apkUrl = widget.updateInfo.apkDownloadUrl;
+    
+    // If no direct APK URL, open release page
+    if (apkUrl == null) {
+      final uri = Uri.parse(widget.updateInfo.downloadUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+      if (mounted) Navigator.pop(context);
+      return;
+    }
+
+    setState(() {
+      _isDownloading = true;
+      _progress = 0;
+      _statusText = 'Starting download...';
+    });
+
+    final notificationService = NotificationService();
+    
+    final filePath = await ApkDownloader.downloadApk(
+      url: apkUrl,
+      version: widget.updateInfo.version,
+      onProgress: (received, total) {
+        if (mounted) {
+          setState(() {
+            _progress = total > 0 ? received / total : 0;
+            final receivedMB = (received / 1024 / 1024).toStringAsFixed(1);
+            final totalMB = (total / 1024 / 1024).toStringAsFixed(1);
+            _statusText = '$receivedMB / $totalMB MB';
+          });
+        }
+        // Update notification
+        notificationService.showUpdateDownloadProgress(
+          version: widget.updateInfo.version,
+          received: received,
+          total: total,
+        );
+      },
+    );
+
+    if (filePath != null) {
+      await notificationService.showUpdateDownloadComplete(
+        version: widget.updateInfo.version,
+      );
+      
+      if (mounted) {
+        Navigator.pop(context);
+      }
+      
+      // Open APK for installation
+      await ApkDownloader.installApk(filePath);
+    } else {
+      await notificationService.showUpdateDownloadFailed();
+      
+      if (mounted) {
+        setState(() {
+          _isDownloading = false;
+          _statusText = 'Download failed';
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to download update')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +130,7 @@ class UpdateDialog extends StatelessWidget {
                   Icon(Icons.arrow_forward, size: 16, color: colorScheme.onPrimaryContainer),
                   const SizedBox(width: 8),
                   Text(
-                    'v${updateInfo.version}',
+                    'v${widget.updateInfo.version}',
                     style: TextStyle(
                       color: colorScheme.onPrimaryContainer,
                       fontWeight: FontWeight.bold,
@@ -70,60 +150,71 @@ class UpdateDialog extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             
-            // Changelog content (scrollable)
-            Flexible(
-              child: Container(
-                constraints: const BoxConstraints(maxHeight: 200),
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(12),
-                  child: Text(
-                    _formatChangelog(updateInfo.changelog),
-                    style: Theme.of(context).textTheme.bodySmall,
+            // Changelog content (scrollable) - hide when downloading
+            if (!_isDownloading)
+              Flexible(
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 200),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(
+                      _formatChangelog(widget.updateInfo.changelog),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   ),
                 ),
               ),
-            ),
+            
+            // Download progress
+            if (_isDownloading) ...[
+              const SizedBox(height: 8),
+              LinearProgressIndicator(value: _progress),
+              const SizedBox(height: 8),
+              Text(
+                _statusText,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
           ],
         ),
       ),
-      actions: [
-        // Don't remind again button
-        TextButton(
-          onPressed: () {
-            onDisableUpdates();
-            Navigator.pop(context);
-          },
-          child: Text(
-            'Don\'t remind',
-            style: TextStyle(color: colorScheme.onSurfaceVariant),
-          ),
-        ),
-        // Later button
-        TextButton(
-          onPressed: () {
-            onDismiss();
-            Navigator.pop(context);
-          },
-          child: const Text('Later'),
-        ),
-        // Download button
-        FilledButton(
-          onPressed: () async {
-            final uri = Uri.parse(updateInfo.downloadUrl);
-            if (await canLaunchUrl(uri)) {
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-            }
-            if (context.mounted) {
-              Navigator.pop(context);
-            }
-          },
-          child: const Text('Download'),
-        ),
-      ],
+      actions: _isDownloading
+          ? [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+            ]
+          : [
+              // Don't remind again button
+              TextButton(
+                onPressed: () {
+                  widget.onDisableUpdates();
+                  Navigator.pop(context);
+                },
+                child: Text(
+                  'Don\'t remind',
+                  style: TextStyle(color: colorScheme.onSurfaceVariant),
+                ),
+              ),
+              // Later button
+              TextButton(
+                onPressed: () {
+                  widget.onDismiss();
+                  Navigator.pop(context);
+                },
+                child: const Text('Later'),
+              ),
+              // Download button
+              FilledButton(
+                onPressed: _downloadAndInstall,
+                child: const Text('Install'),
+              ),
+            ],
     );
   }
 

@@ -5,6 +5,13 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Load keystore properties from file if exists
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = java.util.Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(java.io.FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "com.zarz.spotiflac"
     compileSdk = flutter.compileSdkVersion
@@ -19,6 +26,30 @@ android {
     kotlin {
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
+    }
+
+    signingConfigs {
+        create("release") {
+            if (keystorePropertiesFile.exists()) {
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+            } else if (System.getenv("KEYSTORE_BASE64") != null) {
+                // CI/CD: decode keystore from base64 environment variable
+                val keystoreFile = file("${project.buildDir}/keystore.jks")
+                if (!keystoreFile.exists()) {
+                    keystoreFile.parentFile.mkdirs()
+                    keystoreFile.writeBytes(
+                        java.util.Base64.getDecoder().decode(System.getenv("KEYSTORE_BASE64"))
+                    )
+                }
+                storeFile = keystoreFile
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
         }
     }
 
@@ -39,7 +70,12 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            // Use release signing config if available, otherwise fall back to debug
+            signingConfig = if (signingConfigs.findByName("release")?.storeFile != null) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
             // Enable code shrinking and resource shrinking
             isMinifyEnabled = true
             isShrinkResources = true

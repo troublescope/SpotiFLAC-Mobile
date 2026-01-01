@@ -40,6 +40,9 @@ android/.gradle/
 android/app/libs/
 android/local.properties
 android/*.iml
+android/keystore.properties
+android/*.jks
+android/*.keystore
 
 # iOS
 ios/Frameworks/

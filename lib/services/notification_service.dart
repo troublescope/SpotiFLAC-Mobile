@@ -10,6 +10,7 @@ class NotificationService {
   bool _isInitialized = false;
 
   static const int downloadProgressId = 1;
+  static const int updateDownloadId = 2;
   static const String channelId = 'download_progress';
   static const String channelName = 'Download Progress';
   static const String channelDescription = 'Shows download progress for tracks';
@@ -181,5 +182,122 @@ class NotificationService {
 
   Future<void> cancelDownloadNotification() async {
     await _notifications.cancel(downloadProgressId);
+  }
+
+  // Update APK download notifications
+  Future<void> showUpdateDownloadProgress({
+    required String version,
+    required int received,
+    required int total,
+  }) async {
+    if (!_isInitialized) await initialize();
+
+    final percentage = total > 0 ? (received * 100 ~/ total) : 0;
+    final receivedMB = (received / 1024 / 1024).toStringAsFixed(1);
+    final totalMB = (total / 1024 / 1024).toStringAsFixed(1);
+    
+    final androidDetails = AndroidNotificationDetails(
+      channelId,
+      channelName,
+      channelDescription: channelDescription,
+      importance: Importance.low,
+      priority: Priority.low,
+      showProgress: true,
+      maxProgress: 100,
+      progress: percentage,
+      ongoing: true,
+      autoCancel: false,
+      playSound: false,
+      enableVibration: false,
+      onlyAlertOnce: true,
+      icon: '@mipmap/ic_launcher',
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: false,
+      presentBadge: false,
+      presentSound: false,
+    );
+
+    final details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await _notifications.show(
+      updateDownloadId,
+      'Downloading SpotiFLAC v$version',
+      '$receivedMB / $totalMB MB • $percentage%',
+      details,
+    );
+  }
+
+  Future<void> showUpdateDownloadComplete({required String version}) async {
+    if (!_isInitialized) await initialize();
+
+    const androidDetails = AndroidNotificationDetails(
+      channelId,
+      channelName,
+      channelDescription: channelDescription,
+      importance: Importance.defaultImportance,
+      priority: Priority.defaultPriority,
+      autoCancel: true,
+      playSound: true,
+      icon: '@mipmap/ic_launcher',
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await _notifications.show(
+      updateDownloadId,
+      'Update Ready',
+      'SpotiFLAC v$version downloaded. Tap to install.',
+      details,
+    );
+  }
+
+  Future<void> showUpdateDownloadFailed() async {
+    if (!_isInitialized) await initialize();
+
+    const androidDetails = AndroidNotificationDetails(
+      channelId,
+      channelName,
+      channelDescription: channelDescription,
+      importance: Importance.defaultImportance,
+      priority: Priority.defaultPriority,
+      autoCancel: true,
+      icon: '@mipmap/ic_launcher',
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: false,
+      presentSound: false,
+    );
+
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await _notifications.show(
+      updateDownloadId,
+      'Update Failed',
+      'Could not download update. Try again later.',
+      details,
+    );
+  }
+
+  Future<void> cancelUpdateNotification() async {
+    await _notifications.cancel(updateDownloadId);
   }
 }
