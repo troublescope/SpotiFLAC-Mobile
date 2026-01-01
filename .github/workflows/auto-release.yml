@@ -41,12 +41,13 @@ jobs:
             echo "changed=false" >> $GITHUB_OUTPUT
           fi
 
-  create-tag-and-release:
+  create-tag-and-trigger-release:
     needs: check-version
     if: needs.check-version.outputs.version_changed == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write
     
     steps:
       - name: Checkout repository
@@ -58,5 +59,11 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag ${{ needs.check-version.outputs.new_version }}
           git push origin ${{ needs.check-version.outputs.new_version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Trigger Release workflow
+        run: |
+          gh workflow run release.yml -f version=${{ needs.check-version.outputs.new_version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
