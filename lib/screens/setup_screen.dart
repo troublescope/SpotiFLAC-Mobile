@@ -314,10 +314,13 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         _buildStepDot(0, 'Permission', colorScheme),
-        Container(
-          width: 40,
-          height: 2,
-          color: _currentStep >= 1 ? colorScheme.primary : colorScheme.surfaceContainerHighest,
+        Padding(
+          padding: const EdgeInsets.only(bottom: 20), // Offset for label height
+          child: Container(
+            width: 40,
+            height: 2,
+            color: _currentStep >= 1 ? colorScheme.primary : colorScheme.surfaceContainerHighest,
+          ),
         ),
         _buildStepDot(1, 'Folder', colorScheme),
       ],

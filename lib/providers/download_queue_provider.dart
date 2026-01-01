@@ -71,22 +71,35 @@ class DownloadHistoryState {
 // Download History Notifier (Riverpod 3.x)
 class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
   static const _storageKey = 'download_history';
+  bool _isLoaded = false;
 
   @override
   DownloadHistoryState build() {
     // Load history from storage on init
-    Future.microtask(() => _loadFromStorage());
+    _loadFromStorageSync();
     return const DownloadHistoryState();
+  }
+
+  /// Synchronously schedule load - ensures it runs before any UI renders
+  void _loadFromStorageSync() {
+    if (_isLoaded) return;
+    Future.microtask(() async {
+      await _loadFromStorage();
+      _isLoaded = true;
+    });
   }
 
   Future<void> _loadFromStorage() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final jsonStr = prefs.getString(_storageKey);
-      if (jsonStr != null) {
+      if (jsonStr != null && jsonStr.isNotEmpty) {
         final List<dynamic> jsonList = jsonDecode(jsonStr);
         final items = jsonList.map((e) => DownloadHistoryItem.fromJson(e as Map<String, dynamic>)).toList();
         state = state.copyWith(items: items);
+        print('[DownloadHistory] Loaded ${items.length} items from storage');
+      } else {
+        print('[DownloadHistory] No history found in storage');
       }
     } catch (e) {
       print('[DownloadHistory] Failed to load history: $e');
@@ -98,9 +111,15 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
       final prefs = await SharedPreferences.getInstance();
       final jsonList = state.items.map((e) => e.toJson()).toList();
       await prefs.setString(_storageKey, jsonEncode(jsonList));
+      print('[DownloadHistory] Saved ${state.items.length} items to storage');
     } catch (e) {
       print('[DownloadHistory] Failed to save history: $e');
     }
+  }
+
+  /// Force reload from storage (useful after app restart)
+  Future<void> reloadFromStorage() async {
+    await _loadFromStorage();
   }
 
   void addToHistory(DownloadHistoryItem item) {

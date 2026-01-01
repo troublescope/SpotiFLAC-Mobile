@@ -62,9 +62,6 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with AutomaticKeepAli
             onTap: () => _showColorPicker(context, ref, themeSettings.seedColorValue),
           ),
         
-        // Theme Preview
-        _buildThemePreview(context, colorScheme),
-        
         const Divider(),
         
         // Download Section
@@ -179,17 +176,62 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with AutomaticKeepAli
         ListTile(
           leading: Icon(Icons.info, color: colorScheme.primary),
           title: const Text('About'),
-          subtitle: const Text('SpotiFLAC v1.1.0'),
-          onTap: () => showAboutDialog(
-            context: context,
-            applicationName: 'SpotiFLAC',
-            applicationVersion: '1.1.0',
-            applicationLegalese: '© 2024 SpotiFLAC\n\nMobile: zarzet\nOriginal: afkarxyz',
-          ),
+          subtitle: const Text('SpotiFLAC v1.1.1'),
+          onTap: () => _showAboutDialog(context),
         ),
         
         // Bottom padding for navigation bar
         const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  void _showAboutDialog(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Image.asset('assets/images/logo.png', width: 40, height: 40, errorBuilder: (_, __, ___) => Icon(Icons.music_note, size: 40, color: colorScheme.primary)),
+            const SizedBox(width: 12),
+            const Text('SpotiFLAC'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildAboutRow('Version', '1.1.1', colorScheme),
+            const SizedBox(height: 8),
+            _buildAboutRow('Mobile', 'zarzet', colorScheme),
+            const SizedBox(height: 8),
+            _buildAboutRow('Original', 'afkarxyz', colorScheme),
+            const SizedBox(height: 16),
+            Text(
+              '© 2026 SpotiFLAC',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAboutRow(String label, String value, ColorScheme colorScheme) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: TextStyle(color: colorScheme.onSurfaceVariant)),
+        Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
       ],
     );
   }
@@ -204,42 +246,6 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with AutomaticKeepAli
           fontWeight: FontWeight.bold,
         ),
       ),
-    );
-  }
-
-  Widget _buildThemePreview(BuildContext context, ColorScheme colorScheme) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Theme Preview', style: Theme.of(context).textTheme.titleSmall),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _buildColorChip('Primary', colorScheme.primary, colorScheme.onPrimary),
-                  _buildColorChip('Secondary', colorScheme.secondary, colorScheme.onSecondary),
-                  _buildColorChip('Tertiary', colorScheme.tertiary, colorScheme.onTertiary),
-                  _buildColorChip('Surface', colorScheme.surface, colorScheme.onSurface),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildColorChip(String label, Color background, Color foreground) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(16)),
-      child: Text(label, style: TextStyle(color: foreground, fontSize: 12)),
     );
   }
 
@@ -447,11 +453,20 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with AutomaticKeepAli
             _buildConcurrentOption(context, ref, 2, '2 Parallel', 'Download 2 tracks simultaneously', current, colorScheme),
             _buildConcurrentOption(context, ref, 3, '3 Parallel', 'Download 3 tracks simultaneously', current, colorScheme),
             const SizedBox(height: 12),
-            Text(
-              '⚠️ Parallel downloads may trigger rate limiting from streaming services.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colorScheme.error,
-              ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.warning_amber_rounded, size: 16, color: colorScheme.error),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Parallel downloads may trigger rate limiting from streaming services.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colorScheme.error,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
