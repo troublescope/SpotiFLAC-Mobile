@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.5.0-hotfix3] - 2026-01-02
+
+### Fixed
+- **App Signing**: Decode keystore in workflow before Gradle evaluation
+
 ## [1.5.0-hotfix2] - 2026-01-02
 
 ### Fixed

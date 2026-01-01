@@ -5,20 +5,15 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// Load keystore properties from file if exists
+// Load keystore properties from file if exists (local build)
 val keystorePropertiesFile = rootProject.file("keystore.properties")
 val keystoreProperties = java.util.Properties()
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(java.io.FileInputStream(keystorePropertiesFile))
 }
 
-// Decode keystore from base64 if running in CI
-val ciKeystoreFile = file("${project.projectDir}/ci-keystore.jks")
-if (System.getenv("KEYSTORE_BASE64") != null && !ciKeystoreFile.exists()) {
-    ciKeystoreFile.writeBytes(
-        java.util.Base64.getDecoder().decode(System.getenv("KEYSTORE_BASE64"))
-    )
-}
+// CI keystore file (decoded by workflow)
+val ciKeystoreFile = file("ci-keystore.jks")
 
 android {
     namespace = "com.zarz.spotiflac"
@@ -46,7 +41,7 @@ android {
                 keyAlias = keystoreProperties["keyAlias"] as String
                 keyPassword = keystoreProperties["keyPassword"] as String
             } else if (ciKeystoreFile.exists()) {
-                // CI/CD build: use decoded keystore
+                // CI/CD build: use decoded keystore from workflow
                 storeFile = ciKeystoreFile
                 storePassword = System.getenv("KEYSTORE_PASSWORD")
                 keyAlias = System.getenv("KEY_ALIAS")
