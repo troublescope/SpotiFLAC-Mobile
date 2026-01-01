@@ -93,7 +93,8 @@ import Gobackend  // Import Go framework
         case "setDownloadDirectory":
             let args = call.arguments as! [String: Any]
             let path = args["path"] as! String
-            try GobackendSetDownloadDirectory(path)
+            GobackendSetDownloadDirectory(path, &error)
+            if let error = error { throw error }
             return nil
             
         case "checkDuplicate":
