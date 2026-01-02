@@ -10,6 +10,9 @@
 - **Branding**: Changed idle screen title from "Search Music" to "SpotiFLAC"
 - **About Page Redesign**: New Material Expressive 3 grouped layout with app header, contributors section with GitHub avatars, and organized links
 
+### Fixed
+- **Play Button Flash**: Fixed play button briefly showing red error icon on app start (now uses optimistic rendering)
+
 ### Performance
 - **Optimized State Management**: Use `.select()` for Riverpod providers to prevent unnecessary widget rebuilds
 - **List Keys**: Added keys to all list builders for efficient list updates and reordering

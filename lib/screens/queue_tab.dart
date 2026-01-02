@@ -16,12 +16,22 @@ class QueueTab extends ConsumerStatefulWidget {
 
 class _QueueTabState extends ConsumerState<QueueTab> {
   final Map<String, bool> _fileExistsCache = {};
+  final Set<String> _pendingChecks = {}; // Track pending async checks
   static const int _maxCacheSize = 500; // Limit cache size to prevent memory leak
 
+  /// Check if file exists - returns true optimistically while checking
+  /// This prevents the "red flash" on app start
   bool _checkFileExists(String? filePath) {
     if (filePath == null) return false;
+    
+    // If already cached, return cached value
     if (_fileExistsCache.containsKey(filePath)) {
       return _fileExistsCache[filePath]!;
+    }
+    
+    // If check is pending, return true optimistically (assume file exists)
+    if (_pendingChecks.contains(filePath)) {
+      return true;
     }
     
     // Limit cache size - remove oldest entry if full
@@ -29,14 +39,18 @@ class _QueueTabState extends ConsumerState<QueueTab> {
       _fileExistsCache.remove(_fileExistsCache.keys.first);
     }
     
+    // Mark as pending and start async check
+    _pendingChecks.add(filePath);
     Future.microtask(() async {
       final exists = await File(filePath).exists();
+      _pendingChecks.remove(filePath);
       if (mounted && _fileExistsCache[filePath] != exists) {
         setState(() => _fileExistsCache[filePath] = exists);
       }
     });
-    _fileExistsCache[filePath] = false;
-    return false;
+    
+    // Return true optimistically while checking
+    return true;
   }
 
   Future<void> _openFile(String filePath) async {
