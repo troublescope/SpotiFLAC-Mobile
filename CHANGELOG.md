@@ -9,12 +9,6 @@
   - Ripple effect follows rounded corners including drag handle
 
 ### Changed
-- **Update Dialog Redesign**: Material Expressive 3 style
-  - Icon header with container
-  - Version chips with "Current" and "New" labels
-  - Changelog in rounded card
-  - Download progress with percentage indicator
-  - Cleaner button layout
 - **Unified Progress Tracking System**: Deprecated legacy single-download progress
   - All downloads now use item-based progress tracking
   - Fixes duplicate notification bug when finalizing
@@ -23,6 +17,9 @@
 ### Fixed
 - **Duplicate Notification Bug**: Fixed issue where "Finalizing" and "Downloading" notifications appeared simultaneously
 - **Update Notification Stuck**: Fixed notification staying at 100% after download completes
+- **Quality Picker Consistency**: Unified quality picker UI across all screens (Home, Album, Playlist)
+  - Container with `primaryContainer` background for each option
+  - Distinct icons: music_note (Lossless), high_quality (Hi-Res), four_k (Max)
 
 ## [2.0.0] - 2026-01-03
 
