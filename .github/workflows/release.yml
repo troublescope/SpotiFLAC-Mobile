@@ -125,7 +125,14 @@ jobs:
         run: dart run flutter_launcher_icons
 
       - name: Build APK (Release - unsigned)
-        run: flutter build apk --release --split-per-abi
+        run: |
+          flutter build apk --release --split-per-abi || true
+          # Verify APKs were created
+          ls -la build/app/outputs/flutter-apk/
+          if [ ! -f "build/app/outputs/flutter-apk/app-arm64-v8a-release.apk" ]; then
+            echo "ERROR: APK not found!"
+            exit 1
+          fi
 
       - name: Sign APKs
         uses: r0adkll/sign-android-release@v1

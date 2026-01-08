@@ -105,6 +105,78 @@ class FFmpegServiceIOS {
     return null;
   }
 
+  /// Embed metadata and cover art to FLAC file
+  /// Returns the file path on success, null on failure
+  static Future<String?> embedMetadata({
+    required String flacPath,
+    String? coverPath,
+    Map<String, String>? metadata,
+  }) async {
+    final tempOutput = '$flacPath.tmp';
+    
+    // Construct command
+    final StringBuffer cmdBuffer = StringBuffer();
+    cmdBuffer.write('-i "$flacPath" ');
+    
+    // Add cover input if available
+    if (coverPath != null) {
+      cmdBuffer.write('-i "$coverPath" ');
+    }
+    
+    // Map audio stream
+    cmdBuffer.write('-map 0:a ');
+    
+    // Map cover stream if available
+    if (coverPath != null) {
+      cmdBuffer.write('-map 1:0 ');
+      cmdBuffer.write('-c:v copy ');
+      cmdBuffer.write('-disposition:v attached_pic ');
+      cmdBuffer.write('-metadata:s:v title="Album cover" ');
+      cmdBuffer.write('-metadata:s:v comment="Cover (front)" ');
+    }
+    
+    // Copy audio codec (don't re-encode)
+    cmdBuffer.write('-c:a copy ');
+    
+    // Add text metadata
+    if (metadata != null) {
+      metadata.forEach((key, value) {
+        // Sanitize value: escape double quotes
+        final sanitizedValue = value.replaceAll('"', '\\"');
+        cmdBuffer.write('-metadata $key="$sanitizedValue" ');
+      });
+    }
+    
+    cmdBuffer.write('"$tempOutput" -y');
+    
+    final command = cmdBuffer.toString();
+    _log.d('Executing FFmpeg command: $command');
+
+    final result = await _execute(command);
+
+    if (result.success) {
+      try {
+        await File(flacPath).delete();
+        await File(tempOutput).rename(flacPath);
+        return flacPath;
+      } catch (e) {
+        _log.e('Failed to replace file after metadata embed: $e');
+        return null;
+      }
+    }
+
+    // Clean up temp file if exists
+    try {
+      final tempFile = File(tempOutput);
+      if (await tempFile.exists()) {
+        await tempFile.delete();
+      }
+    } catch (_) {}
+
+    _log.e('Metadata/Cover embed failed: ${result.output}');
+    return null;
+  }
+
   /// Check if FFmpeg is available
   static Future<bool> isAvailable() async {
     try {
