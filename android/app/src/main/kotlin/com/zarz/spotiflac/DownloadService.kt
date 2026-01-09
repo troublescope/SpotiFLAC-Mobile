@@ -15,6 +15,9 @@ import androidx.core.app.NotificationCompat
 /**
  * Foreground service to keep downloads running when app is in background.
  * This prevents Android from killing the download process or throttling network.
+ * 
+ * Note: Android 15+ (API 35+) has a 6-hour timeout for dataSync foreground services.
+ * The service will be stopped automatically after 6 hours of cumulative runtime in 24 hours.
  */
 class DownloadService : Service() {
     
@@ -105,6 +108,19 @@ class DownloadService : Service() {
     }
     
     override fun onBind(intent: Intent?): IBinder? = null
+    
+    /**
+     * Called when the foreground service timeout is reached (Android 15+, API 35+).
+     * dataSync services have a 6-hour limit in a 24-hour period.
+     * We must call stopSelf() within a few seconds to avoid a crash.
+     */
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        // Log the timeout for debugging
+        android.util.Log.w("DownloadService", "Foreground service timeout reached (6 hours limit). Stopping service.")
+        
+        // Gracefully stop the service
+        stopForegroundService()
+    }
     
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
