@@ -19,6 +19,7 @@ enum DownloadErrorType {
   notFound,    // Track not found on any service
   rateLimit,   // Rate limited by service
   network,     // Network/connection error
+  permission,  // File/folder permission error
 }
 
 @JsonSerializable()
@@ -88,6 +89,8 @@ class DownloadItem {
         return 'Rate limit reached, try again later';
       case DownloadErrorType.network:
         return 'Connection failed, check your internet';
+      case DownloadErrorType.permission:
+        return 'Cannot write to folder, check storage permission';
       default:
         return error ?? 'An error occurred';
     }

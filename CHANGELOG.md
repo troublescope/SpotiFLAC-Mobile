@@ -1,5 +1,41 @@
 # Changelog
 
+## [3.0.0-alpha.3] - Upcoming
+
+### Added
+
+- **Separate Singles Folder**: Option to organize downloads into Albums/ and Singles/ folders
+  - Based on `album_type` from Spotify/Deezer metadata
+  - Toggle in Settings > Download > Separate Singles Folder
+  - Singles saved to `{output}/Singles/`, albums to `{output}/Albums/`
+
+### Performance
+
+- **Parallel API Calls**: Download URL fetching now uses parallel requests
+  - Tidal: All 8 APIs requested simultaneously, first success wins
+  - Qobuz: Both APIs requested simultaneously, first success wins
+  - Significantly reduces download URL fetch time
+
+### Fixed
+
+- **Duplicate History Entries**: Fixed duplicate entries when re-downloading same track
+  - Detects existing entries by Spotify ID, Deezer ID, or ISRC
+  - Replaces existing entry and moves to top of list
+  - Auto-deduplicates existing history on app load
+- **Extension Search Fallback**: Fixed error when extension is disabled but still called for search
+  - Now checks if extension is still enabled before calling custom search
+  - Auto-resets search provider to default if extension was disabled
+- **Permission Error Message**: Fixed download showing "Song not found" when actually a permission error
+  - Now shows proper message: "Cannot write to folder, check storage permission"
+  - Added `permission` error type detection in backend
+- **Android 13+ Storage Permission**: Fixed storage permission not working on Android 13+
+  - Android 13+ now requests both `MANAGE_EXTERNAL_STORAGE` and `READ_MEDIA_AUDIO`
+  - `MANAGE_EXTERNAL_STORAGE` opens Settings (system-level, persists across app data clear)
+  - `READ_MEDIA_AUDIO` shows dialog (app-level, resets on app data clear)
+  - Proper permission check before showing "granted" status
+
+---
+
 ## [3.0.0-alpha.2] - 2026-01-12
 
 ### Added

@@ -66,24 +66,38 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       }
     } else if (Platform.isAndroid) {
       // Check storage permission
-      PermissionStatus storageStatus;
+      bool storageGranted = false;
+      
       if (_androidSdkVersion >= 33) {
-        storageStatus = await Permission.audio.status;
+        // Android 13+: Need BOTH MANAGE_EXTERNAL_STORAGE AND READ_MEDIA_AUDIO
+        final manageStatus = await Permission.manageExternalStorage.status;
+        final audioStatus = await Permission.audio.status;
+        debugPrint('[Permission] Android 13+ check: MANAGE_EXTERNAL_STORAGE=$manageStatus, READ_MEDIA_AUDIO=$audioStatus');
+        storageGranted = manageStatus.isGranted && audioStatus.isGranted;
       } else if (_androidSdkVersion >= 30) {
-        storageStatus = await Permission.manageExternalStorage.status;
+        // Android 11-12: Need MANAGE_EXTERNAL_STORAGE only
+        final manageStatus = await Permission.manageExternalStorage.status;
+        debugPrint('[Permission] Android 11-12 check: MANAGE_EXTERNAL_STORAGE=$manageStatus');
+        storageGranted = manageStatus.isGranted;
       } else {
-        storageStatus = await Permission.storage.status;
+        // Android 10 and below: Use legacy storage permission
+        final storageStatus = await Permission.storage.status;
+        debugPrint('[Permission] Android 10- check: STORAGE=$storageStatus');
+        storageGranted = storageStatus.isGranted;
       }
+      
+      debugPrint('[Permission] Final storageGranted=$storageGranted');
       
       // Check notification permission (Android 13+)
       PermissionStatus notificationStatus = PermissionStatus.granted;
       if (_androidSdkVersion >= 33) {
         notificationStatus = await Permission.notification.status;
+        debugPrint('[Permission] Notification=$notificationStatus');
       }
       
       if (mounted) {
         setState(() {
-          _storagePermissionGranted = storageStatus.isGranted;
+          _storagePermissionGranted = storageGranted;
           _notificationPermissionGranted = notificationStatus.isGranted;
         });
       }
@@ -97,17 +111,57 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       if (Platform.isIOS) {
         setState(() => _storagePermissionGranted = true);
       } else if (Platform.isAndroid) {
-        PermissionStatus status;
+        bool allGranted = false;
         
         if (_androidSdkVersion >= 33) {
-          // Android 13+: Use audio permission
-          status = await Permission.audio.request();
+          // Android 13+: Need BOTH MANAGE_EXTERNAL_STORAGE AND READ_MEDIA_AUDIO
+          
+          // First check/request MANAGE_EXTERNAL_STORAGE
+          var manageStatus = await Permission.manageExternalStorage.status;
+          if (!manageStatus.isGranted) {
+            if (mounted) {
+              final shouldOpen = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Storage Access Required'),
+                  content: const Text(
+                    'SpotiFLAC needs "All files access" permission to save music files to your chosen folder.\n\n'
+                    'Please enable "Allow access to manage all files" in the next screen.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Open Settings'),
+                    ),
+                  ],
+                ),
+              );
+              
+              if (shouldOpen == true) {
+                await Permission.manageExternalStorage.request();
+                // Re-check after returning from settings
+                await Future.delayed(const Duration(milliseconds: 500));
+                manageStatus = await Permission.manageExternalStorage.status;
+              }
+            }
+          }
+          
+          // Then request READ_MEDIA_AUDIO (this shows a dialog)
+          var audioStatus = await Permission.audio.status;
+          if (!audioStatus.isGranted && manageStatus.isGranted) {
+            audioStatus = await Permission.audio.request();
+          }
+          
+          allGranted = manageStatus.isGranted && audioStatus.isGranted;
+          
         } else if (_androidSdkVersion >= 30) {
-          // Android 11-12: Need MANAGE_EXTERNAL_STORAGE
-          // This opens system settings, not a dialog
-          status = await Permission.manageExternalStorage.status;
-          if (!status.isGranted) {
-            // Show explanation dialog first
+          // Android 11-12: Need MANAGE_EXTERNAL_STORAGE only
+          var manageStatus = await Permission.manageExternalStorage.status;
+          if (!manageStatus.isGranted) {
             if (mounted) {
               final shouldOpen = await showDialog<bool>(
                 context: context,
@@ -131,23 +185,33 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
               );
               
               if (shouldOpen == true) {
-                status = await Permission.manageExternalStorage.request();
+                await Permission.manageExternalStorage.request();
+                // Re-check after returning from settings
+                await Future.delayed(const Duration(milliseconds: 500));
+                manageStatus = await Permission.manageExternalStorage.status;
               }
             }
           }
+          allGranted = manageStatus.isGranted;
+          
         } else {
           // Android 10 and below: Use legacy storage permission
-          status = await Permission.storage.request();
+          final status = await Permission.storage.request();
+          allGranted = status.isGranted;
+          
+          if (status.isPermanentlyDenied) {
+            _showPermissionDeniedDialog('Storage');
+            setState(() => _isLoading = false);
+            return;
+          }
         }
         
-        if (status.isGranted) {
+        if (allGranted) {
           setState(() => _storagePermissionGranted = true);
-        } else if (status.isPermanentlyDenied) {
-          _showPermissionDeniedDialog('Storage');
         } else {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Permission denied. Please grant permission to continue.')),
+              const SnackBar(content: Text('Permission denied. Please grant all permissions to continue.')),
             );
           }
         }

@@ -1015,6 +1015,12 @@ func errorResponse(msg string) (string, error) {
 		strings.Contains(lowerMsg, "try using vpn") ||
 		strings.Contains(lowerMsg, "change dns") {
 		errorType = "isp_blocked"
+	} else if strings.Contains(lowerMsg, "permission") ||
+		strings.Contains(lowerMsg, "operation not permitted") ||
+		strings.Contains(lowerMsg, "access denied") ||
+		strings.Contains(lowerMsg, "failed to create file") ||
+		strings.Contains(lowerMsg, "failed to create directory") {
+		errorType = "permission"
 	} else if strings.Contains(lowerMsg, "not found") ||
 		strings.Contains(lowerMsg, "not available") ||
 		strings.Contains(lowerMsg, "no results") ||

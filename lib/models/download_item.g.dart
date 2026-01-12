@@ -51,4 +51,5 @@ const _$DownloadErrorTypeEnumMap = {
   DownloadErrorType.notFound: 'notFound',
   DownloadErrorType.rateLimit: 'rateLimit',
   DownloadErrorType.network: 'network',
+  DownloadErrorType.permission: 'permission',
 };
