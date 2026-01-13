@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:spotiflac_android/providers/store_provider.dart';
 import 'package:spotiflac_android/widgets/settings_group.dart';
+import 'package:spotiflac_android/screens/store/extension_details_screen.dart';
 
 class StoreTab extends ConsumerStatefulWidget {
   const StoreTab({super.key});
@@ -26,10 +27,10 @@ class _StoreTabState extends ConsumerState<StoreTab> {
     _isInitialized = true;
 
     final cacheDir = await getApplicationCacheDirectory();
-    
+
     // Check if widget is still mounted after async operation
     if (!mounted) return;
-    
+
     await ref.read(storeProvider.notifier).initialize(cacheDir.path);
   }
 
@@ -47,7 +48,8 @@ class _StoreTabState extends ConsumerState<StoreTab> {
 
     return Scaffold(
       body: RefreshIndicator(
-        onRefresh: () => ref.read(storeProvider.notifier).refresh(forceRefresh: true),
+        onRefresh: () =>
+            ref.read(storeProvider.notifier).refresh(forceRefresh: true),
         child: CustomScrollView(
           slivers: [
             // App Bar - consistent with other tabs
@@ -63,9 +65,10 @@ class _StoreTabState extends ConsumerState<StoreTab> {
                 builder: (context, constraints) {
                   final maxHeight = 120 + topPadding;
                   final minHeight = kToolbarHeight + topPadding;
-                  final expandRatio = ((constraints.maxHeight - minHeight) /
-                          (maxHeight - minHeight))
-                      .clamp(0.0, 1.0);
+                  final expandRatio =
+                      ((constraints.maxHeight - minHeight) /
+                              (maxHeight - minHeight))
+                          .clamp(0.0, 1.0);
 
                   return FlexibleSpaceBar(
                     expandedTitleScale: 1.0,
@@ -97,7 +100,9 @@ class _StoreTabState extends ConsumerState<StoreTab> {
                             icon: const Icon(Icons.clear),
                             onPressed: () {
                               _searchController.clear();
-                              ref.read(storeProvider.notifier).setSearchQuery('');
+                              ref
+                                  .read(storeProvider.notifier)
+                                  .setSearchQuery('');
                             },
                           )
                         : null,
@@ -107,9 +112,15 @@ class _StoreTabState extends ConsumerState<StoreTab> {
                     ),
                     filled: true,
                     fillColor: Theme.of(context).brightness == Brightness.dark
-                        ? Color.alphaBlend(Colors.white.withValues(alpha: 0.08), colorScheme.surface)
+                        ? Color.alphaBlend(
+                            Colors.white.withValues(alpha: 0.08),
+                            colorScheme.surface,
+                          )
                         : colorScheme.surfaceContainerHighest,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                   ),
                   onChanged: (value) {
                     ref.read(storeProvider.notifier).setSearchQuery(value);
@@ -123,49 +134,68 @@ class _StoreTabState extends ConsumerState<StoreTab> {
             SliverToBoxAdapter(
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
                     _CategoryChip(
                       label: 'All',
                       icon: Icons.apps,
                       isSelected: state.selectedCategory == null,
-                      onTap: () => ref.read(storeProvider.notifier).setCategory(null),
+                      onTap: () =>
+                          ref.read(storeProvider.notifier).setCategory(null),
                     ),
                     const SizedBox(width: 8),
                     _CategoryChip(
                       label: 'Metadata',
                       icon: Icons.label_outline,
-                      isSelected: state.selectedCategory == StoreCategory.metadata,
-                      onTap: () => ref.read(storeProvider.notifier).setCategory(StoreCategory.metadata),
+                      isSelected:
+                          state.selectedCategory == StoreCategory.metadata,
+                      onTap: () => ref
+                          .read(storeProvider.notifier)
+                          .setCategory(StoreCategory.metadata),
                     ),
                     const SizedBox(width: 8),
                     _CategoryChip(
                       label: 'Download',
                       icon: Icons.download_outlined,
-                      isSelected: state.selectedCategory == StoreCategory.download,
-                      onTap: () => ref.read(storeProvider.notifier).setCategory(StoreCategory.download),
+                      isSelected:
+                          state.selectedCategory == StoreCategory.download,
+                      onTap: () => ref
+                          .read(storeProvider.notifier)
+                          .setCategory(StoreCategory.download),
                     ),
                     const SizedBox(width: 8),
                     _CategoryChip(
                       label: 'Utility',
                       icon: Icons.build_outlined,
-                      isSelected: state.selectedCategory == StoreCategory.utility,
-                      onTap: () => ref.read(storeProvider.notifier).setCategory(StoreCategory.utility),
+                      isSelected:
+                          state.selectedCategory == StoreCategory.utility,
+                      onTap: () => ref
+                          .read(storeProvider.notifier)
+                          .setCategory(StoreCategory.utility),
                     ),
                     const SizedBox(width: 8),
                     _CategoryChip(
                       label: 'Lyrics',
                       icon: Icons.lyrics_outlined,
-                      isSelected: state.selectedCategory == StoreCategory.lyrics,
-                      onTap: () => ref.read(storeProvider.notifier).setCategory(StoreCategory.lyrics),
+                      isSelected:
+                          state.selectedCategory == StoreCategory.lyrics,
+                      onTap: () => ref
+                          .read(storeProvider.notifier)
+                          .setCategory(StoreCategory.lyrics),
                     ),
                     const SizedBox(width: 8),
                     _CategoryChip(
                       label: 'Integration',
                       icon: Icons.link,
-                      isSelected: state.selectedCategory == StoreCategory.integration,
-                      onTap: () => ref.read(storeProvider.notifier).setCategory(StoreCategory.integration),
+                      isSelected:
+                          state.selectedCategory == StoreCategory.integration,
+                      onTap: () => ref
+                          .read(storeProvider.notifier)
+                          .setCategory(StoreCategory.integration),
                     ),
                   ],
                 ),
@@ -182,9 +212,7 @@ class _StoreTabState extends ConsumerState<StoreTab> {
                 child: _buildErrorState(state.error!, colorScheme),
               )
             else if (state.filteredExtensions.isEmpty)
-              SliverFillRemaining(
-                child: _buildEmptyState(state, colorScheme),
-              )
+              SliverFillRemaining(child: _buildEmptyState(state, colorScheme))
             else ...[
               // Extensions count
               SliverToBoxAdapter(
@@ -204,15 +232,19 @@ class _StoreTabState extends ConsumerState<StoreTab> {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: SettingsGroup(
-                    children: state.filteredExtensions.asMap().entries.map((entry) {
+                    children: state.filteredExtensions.asMap().entries.map((
+                      entry,
+                    ) {
                       final index = entry.key;
                       final ext = entry.value;
                       return _ExtensionItem(
                         extension: ext,
-                        showDivider: index < state.filteredExtensions.length - 1,
+                        showDivider:
+                            index < state.filteredExtensions.length - 1,
                         isDownloading: state.downloadingId == ext.id,
                         onInstall: () => _installExtension(ext),
                         onUpdate: () => _updateExtension(ext),
+                        onTap: () => _showExtensionDetails(ext),
                       );
                     }).toList(),
                   ),
@@ -251,7 +283,8 @@ class _StoreTabState extends ConsumerState<StoreTab> {
             ),
             const SizedBox(height: 24),
             FilledButton.icon(
-              onPressed: () => ref.read(storeProvider.notifier).refresh(forceRefresh: true),
+              onPressed: () =>
+                  ref.read(storeProvider.notifier).refresh(forceRefresh: true),
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
             ),
@@ -262,7 +295,8 @@ class _StoreTabState extends ConsumerState<StoreTab> {
   }
 
   Widget _buildEmptyState(StoreState state, ColorScheme colorScheme) {
-    final hasFilters = state.searchQuery.isNotEmpty || state.selectedCategory != null;
+    final hasFilters =
+        state.searchQuery.isNotEmpty || state.selectedCategory != null;
 
     return Center(
       child: Column(
@@ -295,23 +329,31 @@ class _StoreTabState extends ConsumerState<StoreTab> {
     );
   }
 
+  void _showExtensionDetails(StoreExtension ext) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ExtensionDetailsScreen(extension: ext),
+      ),
+    );
+  }
+
   Future<void> _installExtension(StoreExtension ext) async {
     final tempDir = await getTemporaryDirectory();
     final appDir = await getApplicationDocumentsDirectory();
     final extensionsDir = '${appDir.path}/extensions';
 
-    final success = await ref.read(storeProvider.notifier).installExtension(
-      ext.id,
-      tempDir.path,
-      extensionsDir,
-    );
+    final success = await ref
+        .read(storeProvider.notifier)
+        .installExtension(ext.id, tempDir.path, extensionsDir);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(success
-              ? '${ext.displayName} installed. Enable it in Settings > Extensions'
-              : 'Failed to install ${ext.displayName}'),
+          content: Text(
+            success
+                ? '${ext.displayName} installed. Enable it in Settings > Extensions'
+                : 'Failed to install ${ext.displayName}',
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -321,24 +363,24 @@ class _StoreTabState extends ConsumerState<StoreTab> {
   Future<void> _updateExtension(StoreExtension ext) async {
     final tempDir = await getTemporaryDirectory();
 
-    final success = await ref.read(storeProvider.notifier).updateExtension(
-      ext.id,
-      tempDir.path,
-    );
+    final success = await ref
+        .read(storeProvider.notifier)
+        .updateExtension(ext.id, tempDir.path);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(success
-              ? '${ext.displayName} updated to v${ext.version}'
-              : 'Failed to update ${ext.displayName}'),
+          content: Text(
+            success
+                ? '${ext.displayName} updated to v${ext.version}'
+                : 'Failed to update ${ext.displayName}',
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
     }
   }
 }
-
 
 class _CategoryChip extends StatelessWidget {
   final String label;
@@ -358,11 +400,7 @@ class _CategoryChip extends StatelessWidget {
     return FilterChip(
       label: Row(
         mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16),
-          const SizedBox(width: 6),
-          Text(label),
-        ],
+        children: [Icon(icon, size: 16), const SizedBox(width: 6), Text(label)],
       ),
       selected: isSelected,
       onSelected: (_) => onTap(),
@@ -377,6 +415,7 @@ class _ExtensionItem extends StatelessWidget {
   final bool isDownloading;
   final VoidCallback onInstall;
   final VoidCallback onUpdate;
+  final VoidCallback? onTap;
 
   const _ExtensionItem({
     required this.extension,
@@ -384,6 +423,7 @@ class _ExtensionItem extends StatelessWidget {
     required this.isDownloading,
     required this.onInstall,
     required this.onUpdate,
+    this.onTap,
   });
 
   IconData _getCategoryIcon(String category) {
@@ -410,151 +450,162 @@ class _ExtensionItem extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              // Extension icon - custom or category-based
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: extension.isInstalled
-                      ? colorScheme.primaryContainer
-                      : colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: extension.iconUrl != null && extension.iconUrl!.isNotEmpty
-                    ? Image.network(
-                        extension.iconUrl!,
-                        width: 44,
-                        height: 44,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Icon(
+        InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                // Extension icon - custom or category-based
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: extension.isInstalled
+                        ? colorScheme.primaryContainer
+                        : colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child:
+                      extension.iconUrl != null && extension.iconUrl!.isNotEmpty
+                      ? Image.network(
+                          extension.iconUrl!,
+                          width: 44,
+                          height: 44,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Icon(
+                            _getCategoryIcon(extension.category),
+                            color: extension.isInstalled
+                                ? colorScheme.onPrimaryContainer
+                                : colorScheme.onSurfaceVariant,
+                          ),
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  value:
+                                      loadingProgress.expectedTotalBytes != null
+                                      ? loadingProgress.cumulativeBytesLoaded /
+                                            loadingProgress.expectedTotalBytes!
+                                      : null,
+                                ),
+                              ),
+                            );
+                          },
+                        )
+                      : Icon(
                           _getCategoryIcon(extension.category),
                           color: extension.isInstalled
                               ? colorScheme.onPrimaryContainer
                               : colorScheme.onSurfaceVariant,
                         ),
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Center(
-                            child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                value: loadingProgress.expectedTotalBytes != null
-                                    ? loadingProgress.cumulativeBytesLoaded /
-                                        loadingProgress.expectedTotalBytes!
-                                    : null,
-                              ),
+                ),
+                const SizedBox(width: 16),
+                // Extension info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              extension.displayName,
+                              style: Theme.of(context).textTheme.bodyLarge
+                                  ?.copyWith(fontWeight: FontWeight.w500),
                             ),
-                          );
-                        },
-                      )
-                    : Icon(
-                        _getCategoryIcon(extension.category),
-                        color: extension.isInstalled
-                            ? colorScheme.onPrimaryContainer
-                            : colorScheme.onSurfaceVariant,
+                          ),
+                          // Version badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'v${extension.version}',
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                            ),
+                          ),
+                        ],
                       ),
-              ),
-              const SizedBox(width: 16),
-              // Extension info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            extension.displayName,
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'by ${extension.author}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
                         ),
-                        // Version badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: colorScheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            'v${extension.version}',
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        extension.description,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Action button
+                if (isDownloading)
+                  const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else if (extension.hasUpdate)
+                  FilledButton.tonal(
+                    onPressed: onUpdate,
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      minimumSize: const Size(0, 36),
+                    ),
+                    child: const Text('Update'),
+                  )
+                else if (extension.isInstalled)
+                  OutlinedButton(
+                    onPressed: null,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      minimumSize: const Size(0, 36),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.check, size: 16, color: colorScheme.outline),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Installed',
+                          style: TextStyle(color: colorScheme.outline),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'by ${extension.author}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                  )
+                else
+                  FilledButton(
+                    onPressed: onInstall,
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      minimumSize: const Size(0, 36),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      extension.description,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Action button
-              if (isDownloading)
-                const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              else if (extension.hasUpdate)
-                FilledButton.tonal(
-                  onPressed: onUpdate,
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    minimumSize: const Size(0, 36),
+                    child: const Text('Install'),
                   ),
-                  child: const Text('Update'),
-                )
-              else if (extension.isInstalled)
-                OutlinedButton(
-                  onPressed: null,
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    minimumSize: const Size(0, 36),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.check, size: 16, color: colorScheme.outline),
-                      const SizedBox(width: 4),
-                      Text('Installed', style: TextStyle(color: colorScheme.outline)),
-                    ],
-                  ),
-                )
-              else
-                FilledButton(
-                  onPressed: onInstall,
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    minimumSize: const Size(0, 36),
-                  ),
-                  child: const Text('Install'),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
         if (showDivider)

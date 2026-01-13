@@ -1,5 +1,109 @@
 # Changelog
 
+## [3.0.0] - 2026-01-14
+
+### 🎉 Extension System (Major Feature)
+
+SpotiFLAC 3.0 introduces a powerful extension system that allows third-party integrations for metadata, downloads, and more.
+
+#### Extension Store
+- Browse and install extensions directly from the app
+- New "Store" tab in bottom navigation
+- Browse by category: Metadata, Download, Utility, Lyrics, Integration
+- Search extensions by name, description, or tags
+- One-tap install, update, and uninstall
+- Offline cache for browsing without internet
+
+#### Extension Capabilities
+- **Custom Search Providers**
+- **Custom URL Handlers**
+- **Custom Thumbnail Ratios**: Square (1:1), Wide (16:9), Portrait (2:3)
+- **Post-Processing Hooks**: Extensions can process downloaded files
+- **Quality Options**: Extensions can define custom quality settings
+
+#### Extension APIs
+- Full HTTP support: GET, POST, PUT, DELETE, PATCH
+- Persistent cookie jar per extension
+- Browser-like polyfills: `fetch()`, `atob()`/`btoa()`, `TextEncoder`/`TextDecoder`, `URL`/`URLSearchParams`
+- Storage API for persistent data
+- File API for file operations
+- HMAC-SHA1 utility for cryptographic operations
+
+#### Security
+- Sandboxed JavaScript runtime (goja)
+- Permission-based access control
+- Network domain whitelisting
+- Improved credential encryption with per-installation random salt
+
+### Added
+
+- **Album Folder Structure Setting**: Option to remove artist folder from album path
+  - `Artist / Album` (default): `Albums/Artist Name/Album Name/`
+  - `Album Only`: `Albums/Album Name/`
+
+- **Separate Singles Folder**: Organize downloads into Albums/ and Singles/ folders
+  - Based on `album_type` from Spotify/Deezer metadata
+  - Toggle in Settings > Download > Separate Singles Folder
+
+- **Parallel API Calls**: Download URL fetching now uses parallel requests
+  - Tidal: All 8 APIs requested simultaneously, first success wins
+  - Qobuz: Both APIs requested simultaneously, first success wins
+  - Significantly reduces download URL fetch time
+
+### Fixed
+
+- **Back Gesture Freeze on Android 13+**: Fixed app freeze when using back gesture in settings
+  - Added `PopScope` with `canPop: true` to all settings pages
+  - Changed navigation to use `PageRouteBuilder` with proper slide transition
+
+- **Bottom Overflow in Folder Organization Dialog**: Fixed overflow in portrait and landscape mode
+  - Made dialog scrollable with max height constraint
+
+- **Japanese Artist Name Order**: Fixed artist mismatch for Japanese names
+  - "Sawano Hiroyuki" vs "Hiroyuki Sawano" now correctly matches
+
+- **Multi-Artist Matching**: Fixed artist mismatch for collaboration tracks
+  - "RADWIMPS feat. Toko Miura" now matches when service only shows "Toko Miura"
+
+- **Max Resolution Cover Download**: Fixed cover not upgrading to max resolution on mobile
+  - Mobile now correctly upgrades 300x300 → 640x640 → max resolution (~2000x2000)
+
+- **EXISTS: Prefix in File Path**: Fixed "File not found" error in metadata screen
+  - Duplicate detection prefix now stripped before saving to history
+
+- **Extension Search Result Parsing**: Fixed "cannot unmarshal array" error
+  - Go backend now handles both array and object formats from extensions
+
+- **Store Tab Unmount Crash**: Fixed "Using ref when widget is unmounted" error
+
+- **Duplicate History Entries**: Fixed duplicate entries when re-downloading same track
+  - Detects existing entries by Spotify ID, Deezer ID, or ISRC
+
+- **Permission Error Message**: Fixed download showing "Song not found" when actually permission error
+  - Now shows proper message: "Cannot write to folder, check storage permission"
+
+- **Android 13+ Storage Permission**: Fixed storage permission not working on Android 13+
+  - Now requests both `MANAGE_EXTERNAL_STORAGE` and `READ_MEDIA_AUDIO`
+
+### Changed
+
+- **Extension Manifest**: New `file` permission required for file operations
+  ```json
+  "permissions": {
+    "network": ["api.example.com"],
+    "storage": true,
+    "file": true
+  }
+  ```
+
+### Technical
+
+- Go backend: Simplified parallel download result handling in Tidal/Qobuz
+- Go backend: Removed unused functions and fixed bit shifting warnings
+- Release workflow: Fixed duplicate `---` separator in release notes
+
+---
+
 ## [3.0.0-beta.2] - 2026-01-13
 
 ### Added
@@ -320,16 +424,6 @@
   - `ios/Runner/AppDelegate.swift`: Added `upgradeExtension`, `checkExtensionUpgrade` handlers
 - **Android Changes**:
   - `android/app/src/main/kotlin/com/zarz/spotiflac/MainActivity.kt`: Already had upgrade methods
-
-### Documentation
-
-- Updated `docs/EXTENSION_DEVELOPMENT.md`:
-  - Added thumbnail ratio customization section
-  - Added extension upgrade documentation
-  - Added settings fields table with `secret` field
-  - Added new troubleshooting entries
-  - Updated table of contents
-  - Updated changelog
 
 ---
 

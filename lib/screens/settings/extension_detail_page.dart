@@ -188,6 +188,7 @@ class _ExtensionDetailPageState extends ConsumerState<ExtensionDetailPage> {
                     const SizedBox(height: 16),
                     _InfoRow(label: 'Author', value: extension.author),
                     _InfoRow(label: 'ID', value: extension.id),
+                    _InfoRow(label: 'Version', value: 'v${extension.version}'),
                     if (hasError && extension.errorMessage != null)
                       _InfoRow(
                         label: 'Error',
@@ -238,24 +239,53 @@ class _ExtensionDetailPageState extends ConsumerState<ExtensionDetailPage> {
                   subtitle: extension.postProcessing?.hooks.isNotEmpty == true
                       ? '${extension.postProcessing!.hooks.length} hook(s) available'
                       : null,
+                ),
+                _CapabilityItem(
+                  icon: Icons.link,
+                  title: 'URL Handler',
+                  enabled: extension.hasURLHandler,
+                  subtitle: extension.urlHandler?.patterns.isNotEmpty == true
+                      ? '${extension.urlHandler!.patterns.length} pattern(s)'
+                      : null,
                   showDivider: false,
                 ),
               ],
             ),
           ),
 
-          // Search Provider Section (if extension has custom search)
-          if (extension.hasCustomSearch) ...[
+
+
+          // URL Handler Section (if extension handles URLs)
+          if (extension.hasURLHandler && extension.urlHandler!.patterns.isNotEmpty) ...[
             const SliverToBoxAdapter(
-              child: SettingsSectionHeader(title: 'Search Provider'),
+              child: SettingsSectionHeader(title: 'URL Handler'),
             ),
             SliverToBoxAdapter(
               child: SettingsGroup(
                 children: [
-                  _SearchProviderInfo(
-                    extension: extension,
+                  _URLHandlerInfo(
+                    patterns: extension.urlHandler!.patterns,
                   ),
                 ],
+              ),
+            ),
+          ],
+
+          // Quality Options Section (for download providers)
+          if (extension.hasDownloadProvider && extension.qualityOptions.isNotEmpty) ...[
+            const SliverToBoxAdapter(
+              child: SettingsSectionHeader(title: 'Quality Options'),
+            ),
+            SliverToBoxAdapter(
+              child: SettingsGroup(
+                children: extension.qualityOptions.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final quality = entry.value;
+                  return _QualityOptionItem(
+                    quality: quality,
+                    showDivider: index < extension.qualityOptions.length - 1,
+                  );
+                }).toList(),
               ),
             ),
           ],
@@ -820,17 +850,18 @@ class _PostProcessingHookItem extends StatelessWidget {
   }
 }
 
-class _SearchProviderInfo extends StatelessWidget {
-  final Extension extension;
 
-  const _SearchProviderInfo({
-    required this.extension,
+
+class _URLHandlerInfo extends StatelessWidget {
+  final List<String> patterns;
+
+  const _URLHandlerInfo({
+    required this.patterns,
   });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final searchBehavior = extension.searchBehavior;
     
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -843,12 +874,12 @@ class _SearchProviderInfo extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: colorScheme.secondaryContainer,
+                  color: colorScheme.tertiaryContainer,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  Icons.manage_search,
-                  color: colorScheme.onSecondaryContainer,
+                  Icons.link,
+                  color: colorScheme.onTertiaryContainer,
                   size: 24,
                 ),
               ),
@@ -858,14 +889,14 @@ class _SearchProviderInfo extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Custom Search Available',
+                      'Custom URL Handling',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'This extension provides its own search functionality',
+                      'This extension can handle links from these sites',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: colorScheme.onSurfaceVariant,
                       ),
@@ -876,25 +907,38 @@ class _SearchProviderInfo extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          // Search placeholder info
-          if (searchBehavior?.placeholder != null) ...[
-            _InfoTile(
-              icon: Icons.text_fields,
-              label: 'Search Hint',
-              value: searchBehavior!.placeholder!,
-            ),
-            const SizedBox(height: 8),
-          ],
-          // Primary search info
-          _InfoTile(
-            icon: searchBehavior?.primary == true ? Icons.star : Icons.star_border,
-            label: 'Priority',
-            value: searchBehavior?.primary == true 
-                ? 'Primary search provider' 
-                : 'Secondary search provider',
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: patterns.map((pattern) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.language,
+                      size: 16,
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      pattern,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurface,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
           ),
           const SizedBox(height: 16),
-          // Usage instructions
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -911,7 +955,7 @@ class _SearchProviderInfo extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'To use this search provider, tap the search bar on the Home tab and select "${extension.displayName}" from the provider chips.',
+                    'Share links from these sites to SpotiFLAC and this extension will handle them.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -926,44 +970,95 @@ class _SearchProviderInfo extends StatelessWidget {
   }
 }
 
-class _InfoTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
+class _QualityOptionItem extends StatelessWidget {
+  final QualityOption quality;
+  final bool showDivider;
 
-  const _InfoTile({
-    required this.icon,
-    required this.label,
-    required this.value,
+  const _QualityOptionItem({
+    required this.quality,
+    this.showDivider = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     
-    return Row(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          icon,
-          size: 18,
-          color: colorScheme.onSurfaceVariant,
-        ),
-        const SizedBox(width: 8),
-        Text(
-          '$label: ',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: colorScheme.onSurfaceVariant,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: colorScheme.secondaryContainer,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.high_quality,
+                  color: colorScheme.onSecondaryContainer,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      quality.label,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    if (quality.description != null && quality.description!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        quality.description!,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 4),
+                    Text(
+                      quality.id,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colorScheme.primary,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (quality.settings.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${quality.settings.length} setting${quality.settings.length > 1 ? 's' : ''}',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
-        Expanded(
-          child: Text(
-            value,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurface,
-              fontWeight: FontWeight.w500,
-            ),
+        if (showDivider)
+          Divider(
+            height: 1,
+            thickness: 1,
+            indent: 72,
+            endIndent: 16,
+            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
           ),
-        ),
       ],
     );
   }
