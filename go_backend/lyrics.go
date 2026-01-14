@@ -287,7 +287,6 @@ func convertToLRCWithMetadata(lyrics *LyricsResponse, trackName, artistName stri
 	// Add metadata headers
 	builder.WriteString(fmt.Sprintf("[ti:%s]\n", trackName))
 	builder.WriteString(fmt.Sprintf("[ar:%s]\n", artistName))
-	builder.WriteString("[by:SpotiFLAC-Mobile]\n")
 	builder.WriteString("\n")
 
 	// Add lyrics lines
