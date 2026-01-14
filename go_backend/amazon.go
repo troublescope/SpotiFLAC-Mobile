@@ -2,6 +2,7 @@ package gobackend
 
 import (
 	"bufio"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -563,6 +564,20 @@ func downloadFromAmazon(req DownloadRequest) (AmazonDownloadResult, error) {
 		}
 	}
 
+	// Prepare lyrics with LRCLIB fallback
+	var lyricsToEmbed string
+	if req.EmbedLyrics {
+		if parallelResult != nil && parallelResult.LyricsLRC != "" {
+			lyricsToEmbed = parallelResult.LyricsLRC
+			GoLog("[Amazon] Using parallel-fetched lyrics (%d lines)...\n", len(parallelResult.LyricsData.Lines))
+		} else {
+			GoLog("[Amazon] No lyrics from primary source, trying LRCLIB fallback...\n")
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			lyricsToEmbed = fetchLRCLIBLyrics(ctx, req.ArtistName, req.TrackName, req.AlbumName, req.DurationMS/1000)
+		}
+	}
+
 	// Embed metadata using Spotify data (more accurate than DoubleDouble)
 	// But preserve track/disc numbers from file if they were better
 	metadata := Metadata{
@@ -588,16 +603,16 @@ func downloadFromAmazon(req DownloadRequest) (AmazonDownloadResult, error) {
 		fmt.Printf("Warning: failed to embed metadata: %v\n", err)
 	}
 
-	// Embed lyrics from parallel fetch
-	if req.EmbedLyrics && parallelResult != nil && parallelResult.LyricsLRC != "" {
-		GoLog("[Amazon] Embedding parallel-fetched lyrics (%d lines)...\n", len(parallelResult.LyricsData.Lines))
-		if embedErr := EmbedLyrics(outputPath, parallelResult.LyricsLRC); embedErr != nil {
+	// Embed lyrics (with LRCLIB fallback)
+	if lyricsToEmbed != "" {
+		GoLog("[Amazon] Embedding lyrics...\n")
+		if embedErr := EmbedLyrics(outputPath, lyricsToEmbed); embedErr != nil {
 			GoLog("[Amazon] Warning: failed to embed lyrics: %v\n", embedErr)
 		} else {
 			fmt.Println("[Amazon] Lyrics embedded successfully")
 		}
 	} else if req.EmbedLyrics {
-		fmt.Println("[Amazon] No lyrics available from parallel fetch")
+		fmt.Println("[Amazon] No lyrics available from any source")
 	}
 
 	fmt.Println("[Amazon] ✓ Downloaded successfully from Amazon Music")

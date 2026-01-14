@@ -2,6 +2,7 @@ package gobackend
 
 import (
 	"bufio"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
@@ -1697,6 +1698,20 @@ func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 		return TidalDownloadResult{}, fmt.Errorf("download completed but file not found at %s or %s", outputPath, m4aPath)
 	}
 
+	// Prepare lyrics with LRCLIB fallback
+	var lyricsToEmbed string
+	if req.EmbedLyrics {
+		if parallelResult != nil && parallelResult.LyricsLRC != "" {
+			lyricsToEmbed = parallelResult.LyricsLRC
+			GoLog("[Tidal] Using parallel-fetched lyrics (%d lines)...\n", len(parallelResult.LyricsData.Lines))
+		} else {
+			GoLog("[Tidal] No lyrics from primary source, trying LRCLIB fallback...\n")
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			lyricsToEmbed = fetchLRCLIBLyrics(ctx, req.ArtistName, req.TrackName, req.AlbumName, req.DurationMS/1000)
+		}
+	}
+
 	// Embed metadata using parallel-fetched cover data
 	metadata := Metadata{
 		Title:       req.TrackName,
@@ -1723,25 +1738,25 @@ func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 			fmt.Printf("Warning: failed to embed metadata: %v\n", err)
 		}
 
-		// Embed lyrics from parallel fetch
-		if req.EmbedLyrics && parallelResult != nil && parallelResult.LyricsLRC != "" {
-			GoLog("[Tidal] Embedding parallel-fetched lyrics (%d lines)...\n", len(parallelResult.LyricsData.Lines))
-			if embedErr := EmbedLyrics(actualOutputPath, parallelResult.LyricsLRC); embedErr != nil {
+		// Embed lyrics (with LRCLIB fallback)
+		if lyricsToEmbed != "" {
+			GoLog("[Tidal] Embedding lyrics...\n")
+			if embedErr := EmbedLyrics(actualOutputPath, lyricsToEmbed); embedErr != nil {
 				GoLog("[Tidal] Warning: failed to embed lyrics: %v\n", embedErr)
 			} else {
 				fmt.Println("[Tidal] Lyrics embedded successfully")
 			}
 		} else if req.EmbedLyrics {
-			fmt.Println("[Tidal] No lyrics available from parallel fetch")
+			fmt.Println("[Tidal] No lyrics available from any source")
 		}
 	} else if strings.HasSuffix(actualOutputPath, ".m4a") {
 		// Embed metadata to M4A file
 		// GoLog("[Tidal] Embedding metadata to M4A file...\n")
 
 		// Add lyrics to metadata if available
-		// if req.EmbedLyrics && parallelResult != nil && parallelResult.LyricsLRC != "" {
-		// 	metadata.Lyrics = parallelResult.LyricsLRC
-		// }
+		if lyricsToEmbed != "" {
+			metadata.Lyrics = lyricsToEmbed
+		}
 
 		// SKIP metadata embedding for M4A to prevent issues with FFmpeg conversion
 		// M4A files from DASH are often fragmented and editing metadata might corrupt the container

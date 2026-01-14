@@ -2,6 +2,7 @@ package gobackend
 
 import (
 	"bufio"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -1064,6 +1065,20 @@ func downloadFromQobuz(req DownloadRequest) (QobuzDownloadResult, error) {
 		SetItemFinalizing(req.ItemID)
 	}
 
+	// Prepare lyrics with LRCLIB fallback
+	var lyricsToEmbed string
+	if req.EmbedLyrics {
+		if parallelResult != nil && parallelResult.LyricsLRC != "" {
+			lyricsToEmbed = parallelResult.LyricsLRC
+			GoLog("[Qobuz] Using parallel-fetched lyrics (%d lines)...\n", len(parallelResult.LyricsData.Lines))
+		} else {
+			GoLog("[Qobuz] No lyrics from primary source, trying LRCLIB fallback...\n")
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			lyricsToEmbed = fetchLRCLIBLyrics(ctx, req.ArtistName, req.TrackName, req.AlbumName, req.DurationMS/1000)
+		}
+	}
+
 	// Embed metadata using parallel-fetched cover data
 	// Use metadata from the actual Qobuz track found (more accurate than request) but prefer
 	// requested Album Name to avoid ISRC version mismatches (e.g. Compilations vs Original)
@@ -1095,16 +1110,16 @@ func downloadFromQobuz(req DownloadRequest) (QobuzDownloadResult, error) {
 		fmt.Printf("Warning: failed to embed metadata: %v\n", err)
 	}
 
-	// Embed lyrics from parallel fetch
-	if req.EmbedLyrics && parallelResult != nil && parallelResult.LyricsLRC != "" {
-		GoLog("[Qobuz] Embedding parallel-fetched lyrics (%d lines)...\n", len(parallelResult.LyricsData.Lines))
-		if embedErr := EmbedLyrics(outputPath, parallelResult.LyricsLRC); embedErr != nil {
+	// Embed lyrics (with LRCLIB fallback)
+	if lyricsToEmbed != "" {
+		GoLog("[Qobuz] Embedding lyrics...\n")
+		if embedErr := EmbedLyrics(outputPath, lyricsToEmbed); embedErr != nil {
 			GoLog("[Qobuz] Warning: failed to embed lyrics: %v\n", embedErr)
 		} else {
 			fmt.Println("[Qobuz] Lyrics embedded successfully")
 		}
 	} else if req.EmbedLyrics {
-		fmt.Println("[Qobuz] No lyrics available from parallel fetch")
+		fmt.Println("[Qobuz] No lyrics available from any source")
 	}
 
 	// Add to ISRC index for fast duplicate checking
