@@ -1723,16 +1723,34 @@ func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 			fmt.Printf("Warning: failed to embed metadata: %v\n", err)
 		}
 
-		// Embed lyrics from parallel fetch
-		if req.EmbedLyrics && parallelResult != nil && parallelResult.LyricsLRC != "" {
-			GoLog("[Tidal] Embedding parallel-fetched lyrics (%d lines)...\n", len(parallelResult.LyricsData.Lines))
-			if embedErr := EmbedLyrics(actualOutputPath, parallelResult.LyricsLRC); embedErr != nil {
-				GoLog("[Tidal] Warning: failed to embed lyrics: %v\n", embedErr)
+		// Embed lyrics from parallel fetch or LRCLIB fallback
+		if req.EmbedLyrics {
+			lyricsToEmbed := ""
+			source := ""
+			if parallelResult != nil && parallelResult.LyricsLRC != "" {
+				lyricsToEmbed = parallelResult.LyricsLRC
+				source = parallelResult.LyricsSource
+				GoLog("[Tidal] Using lyrics from parallel fetch (%s, %d lines)\n", source, len(parallelResult.LyricsData.Lines))
 			} else {
-				fmt.Println("[Tidal] Lyrics embedded successfully")
+				GoLog("[Tidal] No lyrics from initial fetch, trying LRCLIB fallback...\n")
+				lyricsClient := NewLyricsClient()
+				lrcData, err := lyricsClient.FetchLyricsAllSources(req.SpotifyID, req.TrackName, req.ArtistName)
+				if err == nil && lrcData != nil {
+					lyricsToEmbed = convertToLRCWithMetadata(lrcData, req.TrackName, req.ArtistName)
+					source = "lrclib"
+					GoLog("[Tidal] Found lyrics on LRCLIB (%s)\n", lrcData.Source)
+				} else {
+					GoLog("[Tidal] No lyrics found on LRCLIB.\n")
+				}
 			}
-		} else if req.EmbedLyrics {
-			fmt.Println("[Tidal] No lyrics available from parallel fetch")
+
+			if lyricsToEmbed != "" {
+				if embedErr := EmbedLyrics(actualOutputPath, lyricsToEmbed); embedErr != nil {
+					GoLog("[Tidal] Warning: failed to embed lyrics from %s: %v\n", source, embedErr)
+				} else {
+					GoLog("[Tidal] Lyrics from %s embedded successfully\n", source)
+				}
+			}
 		}
 	} else if strings.HasSuffix(actualOutputPath, ".m4a") {
 		// Embed metadata to M4A file

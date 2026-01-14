@@ -115,11 +115,12 @@ func (c *TrackIDCache) Size() int {
 
 // ParallelDownloadResult holds results from parallel operations
 type ParallelDownloadResult struct {
-	CoverData  []byte
-	LyricsData *LyricsResponse
-	LyricsLRC  string
-	CoverErr   error
-	LyricsErr  error
+	CoverData    []byte
+	LyricsData   *LyricsResponse
+	LyricsLRC    string
+	LyricsSource string
+	CoverErr     error
+	LyricsErr    error
 }
 
 // FetchCoverAndLyricsParallel downloads cover and fetches lyrics in parallel
@@ -165,9 +166,10 @@ func FetchCoverAndLyricsParallel(
 				fmt.Printf("[Parallel] Lyrics fetch failed: %v\n", err)
 			} else if lyrics != nil && len(lyrics.Lines) > 0 {
 				result.LyricsData = lyrics
+				result.LyricsSource = lyrics.Provider
 				// Use LRC with metadata headers (like PC version)
 				result.LyricsLRC = convertToLRCWithMetadata(lyrics, trackName, artistName)
-				fmt.Printf("[Parallel] Lyrics fetched: %d lines\n", len(lyrics.Lines))
+				fmt.Printf("[Parallel] Lyrics fetched from %s: %d lines\n", lyrics.Provider, len(lyrics.Lines))
 			} else {
 				result.LyricsErr = fmt.Errorf("no lyrics found")
 				fmt.Println("[Parallel] No lyrics found")
