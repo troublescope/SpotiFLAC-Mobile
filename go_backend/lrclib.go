@@ -31,13 +31,20 @@ func fetchLRCLIBLyrics(
 
 	LogDebug("LRCLIB", "fallback triggered")
 
-	params := url.Values{}
-	params.Set("artist_name", artistName)
-	params.Set("track_name", trackName)
+	// Normalize metadata for LRCLIB request
+	artist := artistName
+	track := trackName
+	album := albumName
 
-	if albumName != "" {
-		params.Set("album_name", albumName)
+	if album == "" {
+		album = track
 	}
+
+	params := url.Values{}
+	params.Set("artist_name", artist)
+	params.Set("track_name", track)
+	params.Set("album_name", album)
+
 	if duration > 0 {
 		params.Set("duration", strconv.Itoa(duration))
 	}
