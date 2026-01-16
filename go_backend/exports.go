@@ -649,7 +649,7 @@ func SanitizeFilename(filename string) string {
 // Returns JSON with lyrics data
 func FetchLyrics(spotifyID, trackName, artistName string) (string, error) {
 	client := NewLyricsClient()
-	lyrics, err := client.FetchLyricsAllSources(spotifyID, trackName, artistName)
+	lyrics, err := client.FetchLyricsAllSources(spotifyID, trackName, artistName, "", 0)
 	if err != nil {
 		return "", err
 	}
@@ -680,9 +680,24 @@ func GetLyricsLRC(spotifyID, trackName, artistName string, filePath string) (str
 		}
 	}
 
+	var albumName string
+	var durationMS int
+
+	if filePath != "" {
+		metadata, err := ReadMetadata(filePath)
+		if err == nil && metadata != nil {
+			albumName = metadata.Album
+		}
+
+		quality, err := GetAudioQuality(filePath)
+		if err == nil && quality.SampleRate > 0 && quality.TotalSamples > 0 {
+			durationMS = int(quality.TotalSamples * 1000 / int64(quality.SampleRate))
+		}
+	}
+
 	// Fallback to fetching from internet
 	client := NewLyricsClient()
-	lyricsData, err := client.FetchLyricsAllSources(spotifyID, trackName, artistName)
+	lyricsData, err := client.FetchLyricsAllSources(spotifyID, trackName, artistName, albumName, durationMS)
 	if err != nil {
 		return "", err
 	}
