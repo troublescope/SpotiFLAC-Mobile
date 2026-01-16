@@ -1045,6 +1045,8 @@ func downloadFromQobuz(req DownloadRequest) (QobuzDownloadResult, error) {
 			req.SpotifyID,
 			req.TrackName,
 			req.ArtistName,
+			req.AlbumName,
+			req.DurationMS,
 			req.EmbedLyrics,
 		)
 	}()

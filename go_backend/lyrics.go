@@ -50,11 +50,17 @@ func NewLyricsClient() *LyricsClient {
 	}
 }
 
-func (c *LyricsClient) FetchLyricsWithMetadata(artist, track string) (*LyricsResponse, error) {
+func (c *LyricsClient) FetchLyricsWithMetadata(artist, track, album string, duration int) (*LyricsResponse, error) {
 	baseURL := "https://lrclib.net/api/get"
 	params := url.Values{}
 	params.Set("artist_name", artist)
 	params.Set("track_name", track)
+	if album != "" {
+		params.Set("album_name", album)
+	}
+	if duration > 0 {
+		params.Set("duration", strconv.Itoa(duration))
+	}
 
 	fullURL := baseURL + "?" + params.Encode()
 
@@ -127,9 +133,14 @@ func (c *LyricsClient) FetchLyricsFromLRCLibSearch(query string) (*LyricsRespons
 	return c.parseLRCLibResponse(&results[0]), nil
 }
 
-func (c *LyricsClient) FetchLyricsAllSources(spotifyID, trackName, artistName string) (*LyricsResponse, error) {
-	// Strategy 1: Direct match with artist and track name
-	lyrics, err := c.FetchLyricsWithMetadata(artistName, trackName)
+func (c *LyricsClient) FetchLyricsAllSources(spotifyID, trackName, artistName, albumName string, durationMS int) (*LyricsResponse, error) {
+	durationSec := 0
+	if durationMS > 0 {
+		durationSec = durationMS / 1000
+	}
+
+	// Strategy 1: Direct match with all metadata
+	lyrics, err := c.FetchLyricsWithMetadata(artistName, trackName, albumName, durationSec)
 	if err == nil && lyrics != nil && len(lyrics.Lines) > 0 {
 		lyrics.Source = "LRCLIB"
 		return lyrics, nil
@@ -138,7 +149,7 @@ func (c *LyricsClient) FetchLyricsAllSources(spotifyID, trackName, artistName st
 	// Strategy 2: Try with simplified track name
 	simplifiedTrack := simplifyTrackName(trackName)
 	if simplifiedTrack != trackName {
-		lyrics, err = c.FetchLyricsWithMetadata(artistName, simplifiedTrack)
+		lyrics, err = c.FetchLyricsWithMetadata(artistName, simplifiedTrack, albumName, durationSec)
 		if err == nil && lyrics != nil && len(lyrics.Lines) > 0 {
 			lyrics.Source = "LRCLIB (simplified)"
 			return lyrics, nil
