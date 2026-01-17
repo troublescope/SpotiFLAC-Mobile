@@ -50,13 +50,19 @@ func NewLyricsClient() *LyricsClient {
 	}
 }
 
-func (c *LyricsClient) FetchLyricsWithMetadata(artist, track string) (*LyricsResponse, error) {
+func (c *LyricsClient) FetchLyrics(artistName, trackName, albumName string, duration int) (*LyricsResponse, error) {
+	// Use simplified track name for better matching
+	trackName = simplifyTrackName(trackName)
+
 	baseURL := "https://lrclib.net/api/get"
 	params := url.Values{}
-	params.Set("artist_name", artist)
-	params.Set("track_name", track)
+	params.Set("track_name", trackName)
+	params.Set("artist_name", artistName)
+	params.Set("album_name", albumName)
+	params.Set("duration", strconv.Itoa(duration))
 
 	fullURL := baseURL + "?" + params.Encode()
+	GoLog("[Lyrics] Fetching from LRCLIB: %s", fullURL)
 
 	req, err := http.NewRequest("GET", fullURL, nil)
 	if err != nil {
@@ -71,22 +77,61 @@ func (c *LyricsClient) FetchLyricsWithMetadata(artist, track string) (*LyricsRes
 	defer resp.Body.Close()
 
 	if resp.StatusCode == 404 {
-		return nil, fmt.Errorf("lyrics not found")
+		return nil, fmt.Errorf("lyrics not found on LRCLIB")
 	}
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return nil, fmt.Errorf("LRCLIB returned unexpected status code: %d", resp.StatusCode)
 	}
 
 	var lrcResp LRCLibResponse
 	if err := json.NewDecoder(resp.Body).Decode(&lrcResp); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+		return nil, fmt.Errorf("failed to decode LRCLIB response: %w", err)
 	}
 
-	return c.parseLRCLibResponse(&lrcResp), nil
+	if lrcResp.PlainLyrics == "" && lrcResp.SyncedLyrics == "" {
+		return nil, fmt.Errorf("LRCLIB found the track but lyrics are empty")
+	}
+
+	lyrics := c.parseLRCLibResponse(&lrcResp)
+	lyrics.Source = "LRCLIB"
+	return lyrics, nil
 }
 
-func (c *LyricsClient) FetchLyricsFromLRCLibSearch(query string) (*LyricsResponse, error) {
+func (c *LyricsClient) FetchLyricsAllSources(spotifyID, trackName, artistName, albumName string, duration int) (*LyricsResponse, error) {
+	// First, try with full metadata which is more accurate
+	if artistName != "" && trackName != "" && albumName != "" && duration > 0 {
+		lyrics, err := c.FetchLyrics(artistName, trackName, albumName, duration)
+		if err == nil && lyrics != nil {
+			return lyrics, nil
+		}
+		GoLog("[Lyrics] LRCLIB fetch with full metadata failed: %v. Falling back to search.", err)
+	}
+
+	// Fallback to searching if direct get fails or metadata is incomplete
+	query := artistName + " " + trackName
+	searchLyrics, searchErr := c.searchAndParseLyrics(query)
+	if searchErr == nil && searchLyrics != nil {
+		searchLyrics.Source = "LRCLIB Search"
+		return searchLyrics, nil
+	}
+
+	// Try again with simplified track name
+	simplifiedTrack := simplifyTrackName(trackName)
+	if simplifiedTrack != trackName {
+		query = artistName + " " + simplifiedTrack
+		searchLyrics, searchErr = c.searchAndParseLyrics(query)
+		if searchErr == nil && searchLyrics != nil {
+			searchLyrics.Source = "LRCLIB Search (simplified)"
+			return searchLyrics, nil
+		}
+	}
+
+	return nil, fmt.Errorf("lyrics not found from any source")
+}
+
+// searchAndParseLyrics performs a search on LRCLib and returns the best-matching lyrics
+func (c *LyricsClient) searchAndParseLyrics(query string) (*LyricsResponse, error) {
 	baseURL := "https://lrclib.net/api/search"
 	params := url.Values{}
 	params.Set("q", query)
@@ -115,85 +160,18 @@ func (c *LyricsClient) FetchLyricsFromLRCLibSearch(query string) (*LyricsRespons
 	}
 
 	if len(results) == 0 {
-		return nil, fmt.Errorf("no lyrics found")
+		return nil, fmt.Errorf("no lyrics found from search")
 	}
 
+	// Prefer synced lyrics
 	for _, result := range results {
 		if result.SyncedLyrics != "" {
 			return c.parseLRCLibResponse(&result), nil
 		}
 	}
 
+	// Fallback to first result
 	return c.parseLRCLibResponse(&results[0]), nil
-}
-
-func (c *LyricsClient) FetchLyricsAllSources(spotifyID, trackName, artistName, albumName string, duration int) (*LyricsResponse, error) {
-	// LRCLIB GET request with full metadata
-	if artistName != "" && trackName != "" && albumName != "" && duration > 0 {
-		baseURL := "https://lrclib.net/api/get"
-		params := url.Values{}
-		params.Set("track_name", trackName)
-		params.Set("artist_name", artistName)
-		params.Set("album_name", albumName)
-		params.Set("duration", strconv.Itoa(duration))
-
-		fullURL := baseURL + "?" + params.Encode()
-
-		req, err := http.NewRequest("GET", fullURL, nil)
-		if err == nil {
-			req.Header.Set("User-Agent", "SpotiFLAC-Android/1.0")
-			resp, err := c.httpClient.Do(req)
-			if err == nil {
-				defer resp.Body.Close()
-				if resp.StatusCode == 200 {
-					var lrcResp LRCLibResponse
-					if err := json.NewDecoder(resp.Body).Decode(&lrcResp); err == nil {
-						if lrcResp.PlainLyrics != "" || lrcResp.SyncedLyrics != "" {
-							lyrics := c.parseLRCLibResponse(&lrcResp)
-							lyrics.Source = "LRCLIB"
-							return lyrics, nil
-						}
-					}
-				}
-			}
-		}
-	}
-	// Strategy 1: Direct match with artist and track name
-	lyrics, err := c.FetchLyricsWithMetadata(artistName, trackName)
-	if err == nil && lyrics != nil && len(lyrics.Lines) > 0 {
-		lyrics.Source = "LRCLIB"
-		return lyrics, nil
-	}
-
-	// Strategy 2: Try with simplified track name
-	simplifiedTrack := simplifyTrackName(trackName)
-	if simplifiedTrack != trackName {
-		lyrics, err = c.FetchLyricsWithMetadata(artistName, simplifiedTrack)
-		if err == nil && lyrics != nil && len(lyrics.Lines) > 0 {
-			lyrics.Source = "LRCLIB (simplified)"
-			return lyrics, nil
-		}
-	}
-
-	// Strategy 3: Search with full query
-	query := artistName + " " + trackName
-	lyrics, err = c.FetchLyricsFromLRCLibSearch(query)
-	if err == nil && lyrics != nil && len(lyrics.Lines) > 0 {
-		lyrics.Source = "LRCLIB Search"
-		return lyrics, nil
-	}
-
-	// Strategy 4: Search with simplified query
-	if simplifiedTrack != trackName {
-		query = artistName + " " + simplifiedTrack
-		lyrics, err = c.FetchLyricsFromLRCLibSearch(query)
-		if err == nil && lyrics != nil && len(lyrics.Lines) > 0 {
-			lyrics.Source = "LRCLIB Search (simplified)"
-			return lyrics, nil
-		}
-	}
-
-	return nil, fmt.Errorf("lyrics not found from any source")
 }
 
 func (c *LyricsClient) parseLRCLibResponse(resp *LRCLibResponse) *LyricsResponse {
