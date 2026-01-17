@@ -127,7 +127,37 @@ func (c *LyricsClient) FetchLyricsFromLRCLibSearch(query string) (*LyricsRespons
 	return c.parseLRCLibResponse(&results[0]), nil
 }
 
-func (c *LyricsClient) FetchLyricsAllSources(spotifyID, trackName, artistName string) (*LyricsResponse, error) {
+func (c *LyricsClient) FetchLyricsAllSources(spotifyID, trackName, artistName, albumName string, duration int) (*LyricsResponse, error) {
+	// LRCLIB GET request with full metadata
+	if artistName != "" && trackName != "" && albumName != "" && duration > 0 {
+		baseURL := "https://lrclib.net/api/get"
+		params := url.Values{}
+		params.Set("track_name", trackName)
+		params.Set("artist_name", artistName)
+		params.Set("album_name", albumName)
+		params.Set("duration", strconv.Itoa(duration))
+
+		fullURL := baseURL + "?" + params.Encode()
+
+		req, err := http.NewRequest("GET", fullURL, nil)
+		if err == nil {
+			req.Header.Set("User-Agent", "SpotiFLAC-Android/1.0")
+			resp, err := c.httpClient.Do(req)
+			if err == nil {
+				defer resp.Body.Close()
+				if resp.StatusCode == 200 {
+					var lrcResp LRCLibResponse
+					if err := json.NewDecoder(resp.Body).Decode(&lrcResp); err == nil {
+						if lrcResp.PlainLyrics != "" || lrcResp.SyncedLyrics != "" {
+							lyrics := c.parseLRCLibResponse(&lrcResp)
+							lyrics.Source = "LRCLIB"
+							return lyrics, nil
+						}
+					}
+				}
+			}
+		}
+	}
 	// Strategy 1: Direct match with artist and track name
 	lyrics, err := c.FetchLyricsWithMetadata(artistName, trackName)
 	if err == nil && lyrics != nil && len(lyrics.Lines) > 0 {

@@ -515,15 +515,16 @@ func downloadFromAmazon(req DownloadRequest) (AmazonDownloadResult, error) {
 	parallelDone := make(chan struct{})
 	go func() {
 		defer close(parallelDone)
-		parallelResult = FetchCoverAndLyricsParallel(
-			req.CoverURL,
-			req.EmbedMaxQualityCover,
-			req.SpotifyID,
-			req.TrackName,
-			req.ArtistName,
-			req.EmbedLyrics,
-		)
-	}()
+			parallelResult = FetchCoverAndLyricsParallel(
+				req.CoverURL,
+				req.EmbedMaxQualityCover,
+				req.SpotifyID,
+				req.TrackName,
+				req.ArtistName,
+				req.AlbumName,
+				req.DurationMS,
+				req.EmbedLyrics,
+			)	}()
 
 	// Download audio file with item ID for progress tracking
 	if err := downloader.DownloadFile(downloadURL, outputPath, req.ItemID); err != nil {

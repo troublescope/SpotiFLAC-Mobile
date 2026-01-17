@@ -130,6 +130,8 @@ func FetchCoverAndLyricsParallel(
 	spotifyID string,
 	trackName string,
 	artistName string,
+	albumName string,
+	durationMS int,
 	embedLyrics bool,
 ) *ParallelDownloadResult {
 	result := &ParallelDownloadResult{}
@@ -159,7 +161,7 @@ func FetchCoverAndLyricsParallel(
 			defer wg.Done()
 			fmt.Println("[Parallel] Starting lyrics fetch...")
 			client := NewLyricsClient()
-			lyrics, err := client.FetchLyricsAllSources(spotifyID, trackName, artistName)
+			lyrics, err := client.FetchLyricsAllSources(spotifyID, trackName, artistName, albumName, durationMS/1000)
 			if err != nil {
 				result.LyricsErr = err
 				fmt.Printf("[Parallel] Lyrics fetch failed: %v\n", err)

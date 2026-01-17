@@ -1656,6 +1656,8 @@ func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 			req.SpotifyID,
 			req.TrackName,
 			req.ArtistName,
+			req.AlbumName,
+			req.DurationMS,
 			req.EmbedLyrics,
 		)
 	}()
